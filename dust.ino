@@ -52,9 +52,6 @@ char buffer[512] = "";
 
 ESP8266WebServer server(80);
 MDNSResponder mdns;
-
-// RX - D2(GPIO4); Tx - D3(GPIO0)
-// RX, TX
 SoftwareSerial pmsSerial(PMS_TX,PMS_RX);
 PMS pms(pmsSerial);
 DHT dht(DHTPIN, DHTTYPE);
@@ -96,14 +93,16 @@ void setup() {
 
     // Add service to the MDNS
     mdns.addService("http", "tcp", 80);
+
+    // sleep the PMS
     pms.passiveMode();
     pms.sleep();
 
     // DHT start
     dht.begin();
 
+    // Start the webserver
     server.on("/", handleRoot);
-
     server.begin();
 }
 
