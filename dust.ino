@@ -111,6 +111,7 @@ void setup() {
 
       if (!sample_temp(&temp, &hum)) {
          server.send(503, "text/plain", "oops\n");
+         return;
       }
 
       // Gross hand rolling of json
@@ -125,6 +126,7 @@ void setup() {
 
       if (!sample_pms(data, len)) {
          server.send(503, "text/plain", "oops\n");
+         return;
       }
 
 
