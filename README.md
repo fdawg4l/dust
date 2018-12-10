@@ -66,8 +66,12 @@ According the documentation, `SP` is _Standard Particles, CF=1_, and `AE` is _At
 most useful for tracking the level of hazardous particulate matter in the air.
 
 ## Resources and dependencies
+http://aqicn.org/sensor/pms5003-7003/
+
 http://www.handsontec.com/pdf_learn/esp8266-V10.pdf
 
 https://github.com/fu-hsi/PMS
 
 https://github.com/adafruit/DHT-sensor-library
+
+
