@@ -67,5 +67,7 @@ most useful for tracking the level of hazardous particulate matter in the air.
 
 ## Resources and dependencies
 http://www.handsontec.com/pdf_learn/esp8266-V10.pdf
+
 https://github.com/fu-hsi/PMS
+
 https://github.com/adafruit/DHT-sensor-library
