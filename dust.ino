@@ -83,11 +83,11 @@ void setup() {
     }
 
     // Dump the connection info
-   Serial.println("");
-   Serial.print("Connected to ");
-   Serial.println(ssid);
-   Serial.print("IP address: ");
-   Serial.println(WiFi.localIP());
+    Serial.println("");
+    Serial.print("Connected to ");
+    Serial.println(ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
 
     // Start the MDNS
     if (mdns.begin(HOSTNAME)) {
@@ -102,73 +102,74 @@ void setup() {
     // DHT start
     dht.begin();
 
-    server.on("/", []() {
-      size_t len = SAMPLES;
-      PMS::DATA data[len];
-      char *buf = buffer;
-      float hum = 0, temp = 0;
-      uint idx = 0;
+    server.on("/", handleRoot);
 
-      if (!sample_temp(&temp, &hum)) {
-         server.send(503, "text/plain", "oops\n");
-         return;
-      }
+    server.begin();
+}
 
-      // Gross hand rolling of json
-      int n = sprintf(buf,
-         "{\"t\": {"
-                   "\"humidity_P\": %s,"
-                    "\"temp_F\": %s},",
+void loop() {
+    server.handleClient();
+}
+
+void handleRoot() {
+    size_t len = SAMPLES;
+    PMS::DATA data[len];
+    char *buf = buffer;
+    float hum = 0, temp = 0;
+    uint idx = 0, n = 0;
+
+    if (!sample_temp(&temp, &hum)) {
+        server.send(503, "text/plain", "oops\n");
+        return;
+    }
+
+    // Gross hand rolling of json
+    n = sprintf(buf,
+     "{\"t\": {"
+               "\"humidity_P\": %s,"
+                "\"temp_F\": %s},",
          String(hum).c_str(),
          String(temp).c_str());
 
-      buf = buf + n;
+    buf = buf + n;
 
-      if (!sample_pms(data, len)) {
-         server.send(503, "text/plain", "oops\n");
-         return;
-      }
+    if (!sample_pms(data, len)) {
+        server.send(503, "text/plain", "oops\n");
+        return;
+    }
 
+    // start with an array
+    n = sprintf(buf, "\"a\": [");
+    buf += n;
 
-      // start with an array
-      n = sprintf(buf, "\"a\": [");
-      buf += n;
-
-      // add an object per item
-      for (idx = 0; idx < len; idx++) {
+    // add an object per item
+    for (idx = 0; idx < len; idx++) {
         n = sprintf(buf,
-          "{\"SP_1_0\": %d,"
-           "\"SP_2_5\": %d,"
-           "\"SP_10_0\": %d,"
-           "\"AE_1_0\": %d,"
-           "\"AE_2_5\": %d,"
-           "\"AE_10_0\": %d}",
-           data[idx].PM_SP_UG_1_0,
-           data[idx].PM_SP_UG_2_5,
-           data[idx].PM_SP_UG_10_0,
-           data[idx].PM_AE_UG_1_0,
-           data[idx].PM_AE_UG_2_5,
-           data[idx].PM_AE_UG_10_0);
+            "{\"SP_1_0\": %d,"
+            "\"SP_2_5\": %d,"
+            "\"SP_10_0\": %d,"
+            "\"AE_1_0\": %d,"
+            "\"AE_2_5\": %d,"
+            "\"AE_10_0\": %d}",
+            data[idx].PM_SP_UG_1_0,
+            data[idx].PM_SP_UG_2_5,
+            data[idx].PM_SP_UG_10_0,
+            data[idx].PM_AE_UG_1_0,
+            data[idx].PM_AE_UG_2_5,
+            data[idx].PM_AE_UG_10_0);
 
         buf = buf + n;
 
-          // close out the array or append object
+        // close out the array or append object
         if (idx + 1 == len) {
             sprintf(buf, "]}");
         } else {
             buf[0] = ',';
             buf++;
         }
-      }
+    }
 
-      server.send(200, "text/plain", buffer);
-    });
-
-    server.begin();
-}
-
-void loop() {
-  server.handleClient();
+    server.send(200, "text/plain", buffer);
 }
 
 // Sample will get a sample of data every 5s for the number of len.
@@ -176,48 +177,49 @@ void loop() {
 // to do fan things, then start asking for data.  Then we turn the
 // sensor off, and turn off the light.
 bool sample_pms(PMS::DATA *out, size_t len) {
-  uint8_t idx = 0;
-  bool rv = true;
-  digitalWrite(LED, LOW);
-  pms.wakeUp();
-  delay(PMS_FAN_DELAY);
+    uint8_t idx = 0;
+    bool rv = true;
 
-  for(idx = 0; idx < len; idx++) {
-    pms.requestRead();
     digitalWrite(LED, LOW);
-    if (!pms.readUntil(out[idx])) {
-      rv = false;
-      goto out;
+    pms.wakeUp();
+    delay(PMS_FAN_DELAY);
+
+    for(idx = 0; idx < len; idx++) {
+        pms.requestRead();
+        digitalWrite(LED, LOW);
+
+        if (!pms.readUntil(out[idx])) {
+            rv = false;
+            goto out;
+        }
+
+        digitalWrite(LED, HIGH);
+        delay(5000);
     }
 
-    digitalWrite(LED, HIGH);
-    delay(5000);
-  }
-
 out:
+    pms.sleep();
+    digitalWrite(LED, HIGH);
 
-  pms.sleep();
-  digitalWrite(LED, HIGH);
-
-  return rv;
+    return rv;
 }
 
 bool sample_temp(float *temp, float *hum) {
-  uint8_t i = 0;
-  bool rv = false;
+    uint8_t i = 0;
+    bool rv = false;
 
-  for (i = 0; i < 10; i ++) {
-    *temp = dht.readTemperature(true);
-    *hum = dht.readHumidity();
+    for (i = 0; i < 10; i ++) {
+        *temp = dht.readTemperature(true);
+        *hum = dht.readHumidity();
 
-    if (!isnan(*hum) && !isnan(*temp)) {
-      rv = true;
-      break;
+        if (!isnan(*hum) && !isnan(*temp)) {
+            rv = true;
+            break;
+        }
+
+        // Wait a few seconds between measurements
+        delay(2000);
     }
 
-    // Wait a few seconds between measurements
-    delay(2000);
-  }
-
-  return rv;
+    return rv;
 }
