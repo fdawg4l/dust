@@ -1,14 +1,35 @@
+/*
+ * Copyright 2018, fdawg4l@github.com
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
 #include "PMS.h"
+#include "DHT.h"
 
 #define HOSTNAME "dust"
 
 const char* ssid = "ShitakeMushrooms";
-const char* password = "XXXXXXXX";
+const char* password = "XXXXXXX";
 char buffer[512] = "";
 
 ESP8266WebServer server(80);
@@ -18,6 +39,14 @@ MDNSResponder mdns;
 #define D2 4
 #define D3 0
 #define D4 2
+#define D5 14
+
+// Devices
+#define LED D4
+#define PMS_TX D2
+#define PMS_RX D3
+#define DHTPIN D5
+#define DHTTYPE DHT11
 
 // The fan takes 30s to stabilize and give useful readings.
 #define PMS_FAN_DELAY 30000
@@ -26,13 +55,14 @@ MDNSResponder mdns;
 
 // RX - D2(GPIO4); Tx - D3(GPIO0)
 // RX, TX
-SoftwareSerial pmsSerial(D2,D3);
+SoftwareSerial pmsSerial(PMS_TX,PMS_RX);
 PMS pms(pmsSerial);
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
     // Poke the LED off
-    pinMode(D4, OUTPUT);
-    digitalWrite(D4, HIGH);
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, HIGH);
 
     Serial.begin(115200);
 
@@ -69,24 +99,43 @@ void setup() {
     pms.passiveMode();
     pms.sleep();
 
+    // DHT start
+    dht.begin();
+
     server.on("/", []() {
       size_t len = SAMPLES;
       PMS::DATA data[len];
+      char *buf = buffer;
+      float hum = 0, temp = 0;
+      uint idx = 0;
+
+      if (!sample_temp(&temp, &hum)) {
+         server.send(503, "text/plain", "oops\n");
+      }
 
       // Gross hand rolling of json
-      if (sample(data, len)) {
-        uint8_t idx;
-        char *buf = buffer;
+      int n = sprintf(buf,
+         "{\"t\": {"
+                   "\"humidity_P\": %s,"
+                    "\"temp_F\": %s},",
+         String(hum).c_str(),
+         String(temp).c_str());
 
-        // start with an array
-        buf[0] = '[';
-        buf++;
+      buf = buf + n;
 
-        // add an object per item
-        for (idx = 0; idx < len; idx++) {
+      if (!sample_pms(data, len)) {
+         server.send(503, "text/plain", "oops\n");
+      }
 
-          int n = sprintf(buf,
-           "{\"SP_1_0\": %d,"
+
+      // start with an array
+      n = sprintf(buf, "\"a\": [");
+      buf += n;
+
+      // add an object per item
+      for (idx = 0; idx < len; idx++) {
+        n = sprintf(buf,
+          "{\"SP_1_0\": %d,"
            "\"SP_2_5\": %d,"
            "\"SP_10_0\": %d,"
            "\"AE_1_0\": %d,"
@@ -99,22 +148,18 @@ void setup() {
            data[idx].PM_AE_UG_2_5,
            data[idx].PM_AE_UG_10_0);
 
-          buf = buf + n;
+        buf = buf + n;
 
-          // close out the array or object
-          if (idx + 1 == len) {
-              buf[0] = ']';
-              buf[1] = 0;
-          } else {
-              buf[0] = ',';
-              buf++;
-          }
+          // close out the array or append object
+        if (idx + 1 == len) {
+            sprintf(buf, "]}");
+        } else {
+            buf[0] = ',';
+            buf++;
         }
-
-        server.send(200, "text/plain", buffer);
-      } else {
-        server.send(503, "text/plain", "oops\n");
       }
+
+      server.send(200, "text/plain", buffer);
     });
 
     server.begin();
@@ -124,34 +169,53 @@ void loop() {
   server.handleClient();
 }
 
-
 // Sample will get a sample of data every 5s for the number of len.
 // We turn on the light, wake up the sensor, wait 30s for the fan
 // to do fan things, then start asking for data.  Then we turn the
 // sensor off, and turn off the light.
-bool sample(PMS::DATA *out, size_t len) {
+bool sample_pms(PMS::DATA *out, size_t len) {
   uint8_t idx = 0;
   bool rv = true;
-  digitalWrite(D4, LOW);
+  digitalWrite(LED, LOW);
   pms.wakeUp();
   delay(PMS_FAN_DELAY);
 
   for(idx = 0; idx < len; idx++) {
     pms.requestRead();
-    digitalWrite(D4, LOW);
+    digitalWrite(LED, LOW);
     if (!pms.readUntil(out[idx])) {
       rv = false;
       goto out;
     }
 
-    digitalWrite(D4, HIGH);
+    digitalWrite(LED, HIGH);
     delay(5000);
   }
 
 out:
 
   pms.sleep();
-  digitalWrite(D4, HIGH);
+  digitalWrite(LED, HIGH);
+
+  return rv;
+}
+
+bool sample_temp(float *temp, float *hum) {
+  uint8_t i = 0;
+  bool rv = false;
+
+  for (i = 0; i < 10; i ++) {
+    *temp = dht.readTemperature(true);
+    *hum = dht.readHumidity();
+
+    if (!isnan(*hum) && !isnan(*temp)) {
+      rv = true;
+      break;
+    }
+
+    // Wait a few seconds between measurements
+    delay(2000);
+  }
 
   return rv;
 }
