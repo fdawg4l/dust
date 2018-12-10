@@ -26,15 +26,6 @@
 #include "PMS.h"
 #include "DHT.h"
 
-#define HOSTNAME "dust"
-
-const char* ssid = "ShitakeMushrooms";
-const char* password = "XXXXXXX";
-char buffer[512] = "";
-
-ESP8266WebServer server(80);
-MDNSResponder mdns;
-
 // Pin silkscreen vs reality
 #define D2 4
 #define D3 0
@@ -52,6 +43,15 @@ MDNSResponder mdns;
 #define PMS_FAN_DELAY 30000
 
 #define SAMPLES 5
+
+#define HOSTNAME "dust"
+
+const char* ssid = "ShitakeMushrooms";
+const char* password = "XXXXXXXXX";
+char buffer[512] = "";
+
+ESP8266WebServer server(80);
+MDNSResponder mdns;
 
 // RX - D2(GPIO4); Tx - D3(GPIO0)
 // RX, TX
