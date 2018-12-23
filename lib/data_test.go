@@ -28,4 +28,10 @@ func TestMarshalling(t *testing.T) {
 	if d.A[3].SP_10_0 != 12 {
 		t.Fatalf("should be 12")
 	}
+
+	m := d.Map()
+
+	if len(m) != 8 {
+		t.Fatalf("m should have 8 fields")
+	}
 }

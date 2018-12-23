@@ -3,6 +3,7 @@ package lib
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 )
@@ -46,12 +47,14 @@ func (s *Sensor) worker() {
 	for {
 		select {
 		case <-s.t.C:
+			log.Printf("getting sensor data")
 			ctx, cancel := context.WithTimeout(s.ctx, defaultTimeout)
 			d, err := s.do(ctx)
 			cancel()
 			if err != nil {
 				s.Err = err
-				return
+				log.Printf("sensor error: %s", err.Error())
+				continue
 			}
 
 			s.Datum <- d
@@ -75,6 +78,8 @@ func (s *Sensor) do(ctx context.Context) (*Datum, error) {
 	defer resp.Body.Close()
 
 	d := new(Datum)
+	d.Host = s.host
+
 	dec := json.NewDecoder(resp.Body)
 	if err = dec.Decode(d); err != nil {
 		return nil, err
