@@ -1,6 +1,6 @@
 {
-	"SensorHost": "http://dust.local",
-	"DBHost": "http://127.0.0.1:8086",
+	"SensorHost": "http://172.16.65.64",
+	"DBHost": "http://influxdb:8086",
 	"SampleEveryM": 10,
 	"Debug": true
 }

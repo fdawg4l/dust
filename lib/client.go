@@ -38,6 +38,7 @@ func NewSensor(ctx context.Context, host string, every time.Duration) *Sensor {
 		t:      time.NewTicker(every),
 	}
 
+	time.Sleep(10 * time.Second)
 	go s.worker()
 
 	return s
@@ -45,19 +46,19 @@ func NewSensor(ctx context.Context, host string, every time.Duration) *Sensor {
 
 func (s *Sensor) worker() {
 	for {
+		log.Printf("getting sensor data")
+		ctx, cancel := context.WithTimeout(s.ctx, defaultTimeout)
+		d, err := s.do(ctx)
+		cancel()
+		if err != nil {
+			s.Err = err
+			log.Printf("sensor error: %s", err.Error())
+		} else {
+			s.Datum <- d
+		}
+
 		select {
 		case <-s.t.C:
-			log.Printf("getting sensor data")
-			ctx, cancel := context.WithTimeout(s.ctx, defaultTimeout)
-			d, err := s.do(ctx)
-			cancel()
-			if err != nil {
-				s.Err = err
-				log.Printf("sensor error: %s", err.Error())
-				continue
-			}
-
-			s.Datum <- d
 		case <-s.ctx.Done():
 			return
 		}
