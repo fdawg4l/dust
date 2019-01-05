@@ -29,5 +29,7 @@ grafana:
 dustd:
   image: dustd
   container_name: dustd
+  env_file:
+    - 'env.dustd'
   links:
     - influxdb
