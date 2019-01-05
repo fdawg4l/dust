@@ -65,6 +65,21 @@ $ curl http://dust.local | jq '.'
 According the documentation, `SP` is _Standard Particles, CF=1_, and `AE` is _Atmospheric Environment_.  `AE_2_5` seems to be the
 most useful for tracking the level of hazardous particulate matter in the air.
 
+## Grafana + influxdb
+
+There's a `docker-compose.yml` and an accompanying `dustd` _microservith_ which periodically pulls data from the sensor and posts it to influxdb.  To build/install it, just do the following
+```
+$ make && make docker && docker-compose up -d && ./db.sh
+```
+
+Obviously you need `docker` and `docker-compose` installed.  Google is your friend if you don't already have that.  Also, you won't get far without `go`.  Again, _le Googs_ will help.
+
+And `db.sh` will probably not help you unless your docker host is called `docker.chaos.local` like mine is.  Basically create the db on your host using curl like `db.sh` is doing.  Also, take a look at `config.json`.  You probably don't need to change anything.  Rather, add whatever changes you want to make as environment variables in `env.dustd`.
+
+In the end you'll get pretty graphs like the following.
+
+
+
 ## Resources and dependencies
 http://aqicn.org/sensor/pms5003-7003/
 
