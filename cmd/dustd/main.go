@@ -21,18 +21,23 @@ var cfg = struct {
 func main() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
-
+	viper.SetEnvPrefix("DUST")
+	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
+		log.Printf("Error reading config file, %s", err)
 	}
-	err := viper.Unmarshal(&cfg)
-	if err != nil {
-		log.Fatalf("unable to decode into struct, %v", err)
-	}
-	log.Printf("Config is %#v", cfg)
 
-	sensor := lib.NewSensor(context.Background(), cfg.SensorHost, time.Duration(cfg.SampleEveryM)*time.Minute)
-	dbclient, err := db.NewClient(context.Background(), cfg.DBHost, "air_quality", "", "")
+	log.Printf("Sensor: %s", viper.GetString("SensorHost"))
+	log.Printf("DB: %s", viper.GetString("DBHost"))
+	log.Printf("freq: %d", viper.GetInt64("SampleEveryM"))
+
+	sensor := lib.NewSensor(context.Background(),
+		viper.GetString("SensorHost"),
+		time.Duration(viper.GetInt64("SampleEveryM"))*time.Minute)
+
+	dbclient, err := db.NewClient(context.Background(),
+		viper.GetString("DBHost"),
+		"air_quality", "", "")
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
