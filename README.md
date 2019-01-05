@@ -78,7 +78,7 @@ And `db.sh` will probably not help you unless your docker host is called `docker
 
 In the end you'll get pretty graphs like the following.
 
-
+![grafana](https://github.com/fdawg4l/dust/raw/master/graph.png)
 
 ## Resources and dependencies
 http://aqicn.org/sensor/pms5003-7003/
