@@ -1,5 +1,11 @@
 package lib
 
+import (
+	"fmt"
+
+	"github.com/fdawg4l/dust/pkg/aqi"
+)
+
 type Datum struct {
 	Host string
 	T    struct {
@@ -16,6 +22,8 @@ type Datum struct {
 	}
 }
 
+// we return a map of interface types because thats what the influxdb client
+// expects for multi point writes.
 func (d *Datum) Map() map[string]interface{} {
 	m := make(map[string]float32)
 
@@ -42,6 +50,10 @@ func (d *Datum) Map() map[string]interface{} {
 	m["AE_10_0"] = m["AE_10_0"] / samples
 
 	p := make(map[string]interface{})
+
+	aqiValue, concern := aqi.I(m["AE_2_5"])
+	p["AQI_PM25_Value"] = aqiValue
+	p["AQI_PM25_Concern"] = concern
 
 	for k, v := range m {
 		p[k] = v

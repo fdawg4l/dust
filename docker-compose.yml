@@ -33,3 +33,11 @@ dustd:
     - 'env.dustd'
   links:
     - influxdb
+
+purpleair:
+  image: telegraf
+  container_name: purpleair
+  links:
+    - influxdb
+  volumes:
+    - ./:/etc/telegraf/
