@@ -1,8 +1,6 @@
 package lib
 
 import (
-	"fmt"
-
 	"github.com/fdawg4l/dust/pkg/aqi"
 )
 

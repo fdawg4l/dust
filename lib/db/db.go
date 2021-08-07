@@ -4,52 +4,40 @@ import (
 	"context"
 	"time"
 
-	client "github.com/influxdata/influxdb/client/v2"
+	influxdb "github.com/influxdata/influxdb-client-go/v2"
 )
 
+const measurement string = "air_quality"
+
 type Client struct {
-	dbhost, databaseName, username, password string
+	Host   string `mapstructure: "INFLUXHOST"`
+	Bucket string `mapstructure: "INFLUXBUCKET"`
+	Org    string `mapstructure: "INFLUXORG"`
+	Token  string `mapstructure: "INFLUXTOKEN"`
 }
 
-func NewClient(ctx context.Context, dbhost, dbname, username, password string) (*Client, error) {
+func NewClient(ctx context.Context, host, bucket, org, token string) (*Client, error) {
 	return &Client{
-		dbhost:       dbhost,
-		databaseName: dbname,
-		username:     username,
-		password:     password,
+		Host:   host,
+		Bucket: bucket,
+		Org:    org,
+		Token:  token,
 	}, nil
 }
 
-func (c *Client) Write(host string, fields map[string]interface{}) error {
-	clnt, err := client.NewHTTPClient(client.HTTPConfig{
-		Addr:     c.dbhost,
-		Username: c.username,
-		Password: c.password,
-	})
-
-	if err != nil {
-		return err
-	}
-
+func (c *Client) Write(ctx context.Context, host string, fields map[string]interface{}) error {
+	clnt := influxdb.NewClient(c.Host, c.Token)
 	defer clnt.Close()
 
-	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  c.databaseName,
-		Precision: "s",
-	})
+	writeAPI := clnt.WriteAPIBlocking(c.Org, c.Bucket)
 
 	tags := map[string]string{
 		"host": host,
 	}
 
-	pt, err := client.NewPoint("air_quality", tags, fields, time.Now())
-	if err != nil {
-		return err
-	}
+	pt := influxdb.NewPoint(measurement, tags, fields, time.Now())
 
-	bp.AddPoint(pt)
-
-	if err = clnt.Write(bp); err != nil {
+	if err := writeAPI.WritePoint(ctx, pt); err != nil {
 		return err
 	}
 

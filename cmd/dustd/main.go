@@ -11,10 +11,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfg = struct {
+var Config = struct {
 	SensorHost   string
 	DBHost       string
-	SampleEveryM uint8
+	Org          string
+	Bucket       string
+	Token        string
+	SampleEveryM int64
 	Debug        bool
 }{}
 
@@ -27,24 +30,34 @@ func main() {
 		log.Printf("Error reading config file, %s", err)
 	}
 
-	log.Printf("Sensor: %s", viper.GetString("SensorHost"))
-	log.Printf("DB: %s", viper.GetString("DBHost"))
-	log.Printf("freq: %d", viper.GetInt64("SampleEveryM"))
+	Config.SensorHost = viper.GetString("SensorHost")
+	Config.DBHost = viper.GetString("DBHost")
+	Config.SampleEveryM = viper.GetInt64("SampleEveryM")
+	Config.Org = viper.GetString("Org")
+	Config.Token = viper.GetString("Token")
+	Config.Bucket = viper.GetString("Bucket")
 
-	sensor := lib.NewSensor(context.Background(),
-		viper.GetString("SensorHost"),
-		time.Duration(viper.GetInt64("SampleEveryM"))*time.Minute)
+	log.Printf("Sensor: %s", Config.SensorHost)
+	log.Printf("DB: %s", Config.DBHost)
+	log.Printf("freq: %d", Config.SampleEveryM)
+	log.Printf("Org: %s", Config.Org)
+	log.Printf("Token: %s", Config.Token)
+	log.Printf("Bucket: %s", Config.Bucket)
 
-	dbclient, err := db.NewClient(context.Background(),
-		viper.GetString("DBHost"),
-		"air_quality", "", "")
+	freq := time.Duration(Config.SampleEveryM) * time.Minute
+
+	sensor := lib.NewSensor(context.Background(), Config.SensorHost, freq)
+
+	dbclient, err := db.NewClient(context.Background(), Config.DBHost, Config.Bucket, Config.Org, Config.Token)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
 
 	for data := range sensor.Datum {
-		if err = dbclient.Write(data.Host, data.Map()); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), freq)
+		if err = dbclient.Write(ctx, data.Host, data.Map()); err != nil {
 			log.Printf("db error: " + err.Error())
 		}
+		cancel()
 	}
 }
