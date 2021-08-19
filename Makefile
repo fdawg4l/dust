@@ -55,3 +55,4 @@ test: dist
 
 docker: dist
 	@docker build -t dustd .
+	@docker save dustd > dustd-$(GITREF).tar

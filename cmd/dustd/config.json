@@ -2,5 +2,8 @@
 	"SensorHost": "http://dust.local",
 	"DBHost": "http://influxdb:8086",
 	"SampleEveryM": 10,
-	"Debug": true
+	"Debug": true,
+	"Org": "home",
+	"Bucket": "air_quality",
+	"Token": "My-Token"
 }

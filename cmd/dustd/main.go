@@ -23,12 +23,13 @@ var Config = struct {
 
 func main() {
 	viper.SetConfigName("config")
+	viper.AddConfigPath("/etc/dustd/")
 	viper.AddConfigPath(".")
 	viper.SetEnvPrefix("DUST")
-	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Error reading config file, %s", err)
 	}
+	viper.AutomaticEnv()
 
 	Config.SensorHost = viper.GetString("SensorHost")
 	Config.DBHost = viper.GetString("DBHost")

@@ -7,8 +7,6 @@ import (
 	influxdb "github.com/influxdata/influxdb-client-go/v2"
 )
 
-const measurement string = "air_quality"
-
 type Client struct {
 	Host   string `mapstructure: "INFLUXHOST"`
 	Bucket string `mapstructure: "INFLUXBUCKET"`
@@ -35,7 +33,7 @@ func (c *Client) Write(ctx context.Context, host string, fields map[string]inter
 		"host": host,
 	}
 
-	pt := influxdb.NewPoint(measurement, tags, fields, time.Now())
+	pt := influxdb.NewPoint(host, tags, fields, time.Now())
 
 	if err := writeAPI.WritePoint(ctx, pt); err != nil {
 		return err
